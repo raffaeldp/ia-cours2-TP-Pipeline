@@ -1,5 +1,6 @@
 from PIL import Image
 import os
+from datetime import datetime
 
 
 def _expand2square(pil_img, background_color):
@@ -16,6 +17,21 @@ def _expand2square(pil_img, background_color):
         return result
 
 
+def clear_or_create_folder(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    else:
+        for filename in os.listdir(path):
+            file_path = os.path.join(path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+
+def check_and_create_folder(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 class ImageProcessor:
     """
     This class is used to process all the images present
@@ -25,7 +41,7 @@ class ImageProcessor:
         folder_path (string): The path to the folder that will be processed
     """
 
-    _result_folder_path = "./result"
+    _result_folder_path = "./datasets"
 
     def __init__(self, folder_path):
         self._folderPath = folder_path
@@ -45,22 +61,22 @@ class ImageProcessor:
         """
 
         image_sources = os.listdir(self._folderPath)
+        check_and_create_folder(self._result_folder_path)
 
-        if not os.path.exists(self._result_folder_path):
-            os.makedirs(self._result_folder_path)
-        else:
-            for filename in os.listdir(self._result_folder_path):
-                file_path = os.path.join(self._result_folder_path, filename)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+        unique_folder_name = datetime.now().strftime("%Y%m%d%H%M%S")
+        unique_folder = f"{self._result_folder_path}/{unique_folder_name}/"
+        check_and_create_folder(unique_folder)
 
-        for imageSource in image_sources:
-            self._process_image(imageSource, img_dimension)
+        for image_source in image_sources:
+            self._process_image(
+                image_source,
+                img_dimension,
+                f"{unique_folder}/{os.path.basename(image_source)}",
+            )
 
-    def _process_image(self, image_path, image_dimensions):
+    def _process_image(self, image_path, image_dimensions, image_dest):
         image = Image.open(f"{self._folderPath}/{image_path}")
         square_image = _expand2square(image, (114, 114, 114))
         square_image.resize((image_dimensions, image_dimensions))
 
-        savepath = f"{self._result_folder_path}/{os.path.basename(image_path)}"
-        square_image.save(savepath)
+        square_image.save(image_dest)
