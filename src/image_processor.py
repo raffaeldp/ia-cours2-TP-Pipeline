@@ -1,18 +1,32 @@
 from PIL import Image
+from datetime import datetime
 import os
 
+from src.folder_utils import ensure_folder_exists
 
-def _expand2square(pil_img, background_color):
-    width, height = pil_img.size
+
+def _expand_image_to_square(
+    image: Image, background_color: tuple[int, int, int]
+) -> Image:
+    """
+    Take a pillow image, square it and add padding with the specified color
+    Args:
+        image (PIL.Image): Image to process
+        background_color (tuple[int, int, int]): color of the padding
+
+    Returns:
+        The squared and padded image
+    """
+    width, height = image.size
     if width == height:
-        return pil_img
+        return image
     elif width > height:
         result = Image.new("RGB", (width, width), background_color)
-        result.paste(pil_img, (0, 0))
+        result.paste(image, (0, 0))
         return result
     else:
         result = Image.new("RGB", (height, height), background_color)
-        result.paste(pil_img, (0, 0))
+        result.paste(image, (0, 0))
         return result
 
 
@@ -25,12 +39,12 @@ class ImageProcessor:
         folder_path (string): The path to the folder that will be processed
     """
 
-    _result_folder_path = "./result"
+    _result_folder_path = "./datasets"
 
-    def __init__(self, folder_path):
+    def __init__(self, folder_path: str):
         self._folderPath = folder_path
 
-    def process_folder(self, img_dimension):
+    def process_folder(self, img_dimension: int) -> None:
         """
         This function take all the images contained in the
         folder passed in the constructor
@@ -44,23 +58,41 @@ class ImageProcessor:
             want to apply to all our images
         """
 
+        ensure_folder_exists(self._result_folder_path)
+
+        unique_folder_name = datetime.now().strftime("%Y%m%d%H%M%S")
+        unique_folder = f"{self._result_folder_path}/{unique_folder_name}/"
+        ensure_folder_exists(unique_folder)
+
         image_sources = os.listdir(self._folderPath)
+        for image_source in image_sources:
+            processed_image = self._process_image(
+                image_source,
+                img_dimension,
+            )
 
-        if not os.path.exists(self._result_folder_path):
-            os.makedirs(self._result_folder_path)
-        else:
-            for filename in os.listdir(self._result_folder_path):
-                file_path = os.path.join(self._result_folder_path, filename)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+            processed_image.save(
+                f"{unique_folder}/{os.path.basename(image_source)}",
+            )
 
-        for imageSource in image_sources:
-            self._process_image(imageSource, img_dimension)
+    def _process_image(
+        self,
+        image_path: str,
+        image_dimensions: int,
+    ) -> Image:
+        """
+        Take an image, square it to the wanted dimension
+        with padding and return it.
 
-    def _process_image(self, image_path, image_dimensions):
+        Args:
+            image_path (str): path of the initial image
+            image_dimensions (int): size of the wanted to be squared image
+
+        Returns:
+            processed image
+        """
+
         image = Image.open(f"{self._folderPath}/{image_path}")
-        square_image = _expand2square(image, (114, 114, 114))
+        square_image = _expand_image_to_square(image, (114, 114, 114))
         square_image.resize((image_dimensions, image_dimensions))
-
-        savepath = f"{self._result_folder_path}/{os.path.basename(image_path)}"
-        square_image.save(savepath)
+        return square_image
